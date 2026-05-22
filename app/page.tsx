@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import videojs from "video.js";
+import "video.js/dist/video-js.css";
 
 interface GitHubFile {
   name: string;
@@ -23,7 +25,65 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function VideoModal({ file, onClose }: { file: GitHubFile | null; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<any>(null);
+
+  const videoUrl = file
+    ? `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/${encodeURIComponent(file.name)}`
+    : "";
+
+  useEffect(() => {
+    if (!file || !videoRef.current) return;
+
+    const player = videojs(videoRef.current, {
+      controls: true,
+      autoplay: false,
+      preload: "auto",
+      fluid: true,
+      responsive: true,
+    });
+
+    playerRef.current = player;
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+      }
+    };
+  }, [file]);
+
+  if (!file) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-zinc-900 rounded-lg max-w-4xl w-full max-h-screen overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
+          <h2 className="text-white font-medium truncate">{file.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white text-xl"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-4">
+          <video ref={videoRef} className="w-full" src={videoUrl} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FileThumbnail({ file }: { file: GitHubFile }) {
+
   const fileType = getFileType(file.name);
   const [imgError, setImgError] = useState(false);
 
@@ -64,12 +124,18 @@ function FileThumbnail({ file }: { file: GitHubFile }) {
   );
 }
 
-function FileRow({ file }: { file: GitHubFile }) {
+function FileRow({ file, onViewVideo }: { file: GitHubFile; onViewVideo: (file: GitHubFile) => void }) {
   const fileType = getFileType(file.name);
 
   const rawUrl = `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/${encodeURIComponent(file.name)}`;
-  const viewUrl = fileType === "video" ? `/video?file=${encodeURIComponent(file.name)}` : rawUrl;
-  const openInNewTab = fileType !== "video";
+
+  const handleView = () => {
+    if (fileType === "video") {
+      onViewVideo(file);
+    } else {
+      window.open(rawUrl, "_blank");
+    }
+  };
 
   return (
     <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
@@ -92,14 +158,12 @@ function FileRow({ file }: { file: GitHubFile }) {
 
       {/* Actions */}
       <div className="flex gap-2 flex-shrink-0">
-        <a
-          href={viewUrl}
-          target={openInNewTab ? "_blank" : undefined}
-          rel={openInNewTab ? "noopener noreferrer" : undefined}
+        <button
+          onClick={handleView}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-lg text-sm font-medium transition-all"
         >
           View
-        </a>
+        </button>
         <a
           href={rawUrl}
           download={file.name}
@@ -116,6 +180,7 @@ export default function Home() {
   const [files, setFiles] = useState<GitHubFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<GitHubFile | null>(null);
 
   useEffect(() => {
     fetch(
@@ -136,6 +201,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans">
+      <VideoModal file={selectedVideo} onClose={() => setSelectedVideo(null)} />
+
       <div className="max-w-5xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -176,7 +243,11 @@ export default function Home() {
             </p>
             <div className="flex flex-col gap-3">
               {files.map((file) => (
-                <FileRow key={file.name} file={file} />
+                <FileRow
+                  key={file.name}
+                  file={file}
+                  onViewVideo={setSelectedVideo}
+                />
               ))}
             </div>
           </>
