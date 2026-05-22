@@ -68,6 +68,8 @@ function FileRow({ file }: { file: GitHubFile }) {
   const fileType = getFileType(file.name);
 
   const rawUrl = `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/${encodeURIComponent(file.name)}`;
+  const viewUrl = fileType === "video" ? `/video?file=${encodeURIComponent(file.name)}` : rawUrl;
+  const openInNewTab = fileType !== "video";
 
   return (
     <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
@@ -91,9 +93,9 @@ function FileRow({ file }: { file: GitHubFile }) {
       {/* Actions */}
       <div className="flex gap-2 flex-shrink-0">
         <a
-          href={rawUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={viewUrl}
+          target={openInNewTab ? "_blank" : undefined}
+          rel={openInNewTab ? "noopener noreferrer" : undefined}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-lg text-sm font-medium transition-all"
         >
           View
