@@ -67,7 +67,7 @@ function FileThumbnail({ file }: { file: GitHubFile }) {
 function FileRow({ file }: { file: GitHubFile }) {
   const fileType = getFileType(file.name);
 
-  const rawUrl = `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/${encodeURIComponent(file.name)}`;
+  const rawUrl = `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/${encodeURIComponent(file.name)}`;
 
   return (
     <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
@@ -117,7 +117,7 @@ export default function Home() {
 
   useEffect(() => {
     fetch(
-      "https://api.github.com/repos/nguyenngoduc/SiuuuPHULONArchive/contents",
+      "https://api.github.com/repos/nguyenngoduc/SiuuuPHULONArchive/contents/public/files",
       { headers: { Accept: "application/vnd.github+json" } }
     )
       .then((res) => {
