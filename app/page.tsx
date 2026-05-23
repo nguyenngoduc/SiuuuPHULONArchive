@@ -23,6 +23,72 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function openVideoViewer(fileName: string, videoUrl: string): void {
+  const viewer = window.open("", "_blank");
+  if (!viewer) return;
+
+  const safeTitle = escapeHtml(fileName);
+  const safeSrc = escapeHtml(videoUrl);
+
+  viewer.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: #000; color: #fff; font-family: Arial, sans-serif; }
+      body { display: flex; flex-direction: column; padding: 20px; }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+      h1 { margin: 0; font-size: 18px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      a { color: #d4d4d8; text-decoration: none; border: 1px solid #3f3f46; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+      main { flex: 1; display: flex; align-items: center; min-height: 0; }
+      .video-js { width: 100%; height: min(78vh, 720px); background: #09090b; border-radius: 8px; overflow: hidden; }
+      @media (max-width: 640px) {
+        body { padding: 12px; }
+        h1 { font-size: 15px; }
+        .video-js { height: 70vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>${safeTitle}</h1>
+      <a href="${safeSrc}" download="${safeTitle}">Download</a>
+    </header>
+    <main>
+      <video id="archive-video" class="video-js vjs-big-play-centered" controls preload="auto" playsinline>
+        <source src="${safeSrc}" type="video/mp4" />
+      </video>
+    </main>
+    <script src="https://unpkg.com/video.js/dist/video.min.js"><\/script>
+    <script>
+      window.addEventListener("load", function () {
+        window.videojs("archive-video", {
+          controls: true,
+          fluid: false,
+          responsive: true,
+          preload: "auto"
+        });
+      });
+    <\/script>
+  </body>
+</html>`);
+  viewer.document.close();
+  viewer.opener = null;
+}
+
 function FileThumbnail({ file }: { file: GitHubFile }) {
 
   const fileType = getFileType(file.name);
@@ -69,10 +135,15 @@ function FileRow({ file }: { file: GitHubFile }) {
   const fileType = getFileType(file.name);
 
   const fileUrl = `/files/${encodeURIComponent(file.name)}`;
-  const viewUrl =
-    fileType === "video"
-      ? `/video?file=${encodeURIComponent(file.name)}`
-      : fileUrl;
+
+  const handleView = () => {
+    if (fileType === "video") {
+      openVideoViewer(file.name, fileUrl);
+      return;
+    }
+
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
@@ -95,14 +166,13 @@ function FileRow({ file }: { file: GitHubFile }) {
 
       {/* Actions */}
       <div className="flex gap-2 flex-shrink-0">
-        <a
-          href={viewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={handleView}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-lg text-sm font-medium transition-all"
         >
           View
-        </a>
+        </button>
         <a
           href={fileUrl}
           download={file.name}
