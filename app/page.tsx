@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SearchModal } from "./components/SearchModal";
 
 interface GitHubFile {
   name: string;
@@ -12,8 +13,10 @@ interface GitHubFile {
 
 function getFileType(filename: string): "image" | "video" | "other" {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
-  if (["jpg", "jpeg", "png", "gif", "webp", "avif"].includes(ext)) return "image";
-  if (["mp4", "mov", "avi", "mkv", "webm", "m4v"].includes(ext)) return "video";
+  if (["jpg", "jpeg", "png", "gif", "webp", "avif"].includes(ext))
+    return "image";
+  if (["mp4", "mov", "avi", "mkv", "webm", "m4v"].includes(ext))
+    return "video";
   return "other";
 }
 
@@ -90,7 +93,6 @@ function openVideoViewer(fileName: string, videoUrl: string): void {
 }
 
 function FileThumbnail({ file }: { file: GitHubFile }) {
-
   const fileType = getFileType(file.name);
   const [imgError, setImgError] = useState(false);
 
@@ -189,6 +191,7 @@ export default function Home() {
   const [files, setFiles] = useState<GitHubFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     fetch(
@@ -207,25 +210,84 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Handle "/" key to open search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't open search if user is typing in an input
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleSelectFile = (file: GitHubFile) => {
+    const fileType = getFileType(file.name);
+    const fileUrl = `/files/${encodeURIComponent(file.name)}`;
+
+    if (fileType === "video") {
+      openVideoViewer(file.name, fileUrl);
+      return;
+    }
+
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="min-h-screen bg-black text-white font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold tracking-tight">
-            SiuuuPHULON Archive
-          </h1>
-          <p className="mt-2 text-zinc-400 text-base">
-            PHULON DUYLON Song cho SIUUU
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">
+              SiuuuPHULON Archive
+            </h1>
+            <p className="mt-2 text-zinc-400 text-base">
+              PHULON DUYLON Song cho SIUUU
+            </p>
+          </div>
+          
+          {/* Search Button */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm text-zinc-300 font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <span>Tìm kiếm</span>
+            <span className="text-xs text-zinc-600">/</span>
+          </button>
         </div>
 
         {/* States */}
         {loading && (
           <div className="flex items-center gap-3 text-zinc-500 py-12 justify-center">
             <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
             </svg>
             <span>Đang tải danh sách file...</span>
           </div>
@@ -233,12 +295,15 @@ export default function Home() {
 
         {error && (
           <div className="bg-red-950 border border-red-800 text-red-300 rounded-xl px-5 py-4 text-sm">
-            ⚠️ Không thể tải dữ liệu: <span className="font-mono">{error}</span>
+            ⚠️ Không thể tải dữ liệu:{" "}
+            <span className="font-mono">{error}</span>
           </div>
         )}
 
         {!loading && !error && files.length === 0 && (
-          <p className="text-zinc-500 text-center py-12">Không có file nào trong kho lưu trữ.</p>
+          <p className="text-zinc-500 text-center py-12">
+            Không có file nào trong kho lưu trữ.
+          </p>
         )}
 
         {/* File list */}
@@ -255,6 +320,14 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {/* Search Modal */}
+      <SearchModal
+        files={files}
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelectFile={handleSelectFile}
+      />
     </div>
   );
 }
