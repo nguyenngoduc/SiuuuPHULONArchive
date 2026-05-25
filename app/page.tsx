@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SearchModal } from "./components/SearchModal";
 
 interface GitHubFile {
@@ -192,6 +192,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(
@@ -231,6 +233,20 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Handle scroll to show/hide floating button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!headerRef.current) return;
+
+      const headerRect = headerRef.current.getBoundingClientRect();
+      // Show floating button when header scrolls out of view
+      setShowFloatingButton(headerRect.bottom < 0);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const handleSelectFile = (file: GitHubFile) => {
     const fileType = getFileType(file.name);
     const fileUrl = `/files/${encodeURIComponent(file.name)}`;
@@ -247,7 +263,7 @@ export default function Home() {
     <div className="min-h-screen bg-black text-white font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
+        <div ref={headerRef} className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">
               SiuuuPHULON Archive
@@ -320,6 +336,20 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {/* Floating Search Button (appears when scrolling past header) */}
+      {showFloatingButton && (
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="fixed bottom-6 right-6 z-30 w-14 h-14 md:w-16 md:h-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-full shadow-lg transition-all flex items-center justify-center group"
+          title="Tìm kiếm file"
+        >
+          <svg className="w-6 h-6 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </button>
+      )}
 
       {/* Search Modal */}
       <SearchModal
