@@ -123,6 +123,19 @@ export function SearchModal({
     }
   }, [selectedIndex]);
 
+  const handleDownload = (e: React.MouseEvent, file: GitHubFile) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const fileUrl = `/files/${encodeURIComponent(file.name)}`;
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -235,11 +248,28 @@ export function SearchModal({
                   </p>
                 </div>
 
-                {/* Shortcut hint */}
+                {/* Action buttons */}
                 {index === selectedIndex && (
-                  <span className="text-xs text-zinc-600 flex-shrink-0">
-                    ENTER
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => handleDownload(e, result)}
+                      className="p-2 hover:bg-zinc-700 rounded-lg transition-colors group"
+                      title="Download file"
+                    >
+                      <svg
+                        className="w-4 h-4 text-green-400 group-hover:text-green-300"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </button>
+                    <span className="text-xs text-zinc-600">ENTER</span>
+                  </div>
                 )}
               </button>
             ))}
