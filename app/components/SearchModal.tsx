@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 interface GitHubFile {
@@ -30,6 +31,9 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const BLUR_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect fill='%23333333' width='40' height='40'/%3E%3C/svg%3E";
+
 export function SearchModal({
   files,
   isOpen,
@@ -46,7 +50,6 @@ export function SearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
 
-  // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 0);
@@ -54,7 +57,6 @@ export function SearchModal({
     }
   }, [isOpen]);
 
-  // Search files
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -64,7 +66,6 @@ export function SearchModal({
     const searchQuery = query.toLowerCase();
     const searchResults: SearchResult[] = [];
 
-    // Search by filename
     files.forEach((file) => {
       if (file.name.toLowerCase().includes(searchQuery)) {
         searchResults.push({
@@ -77,7 +78,6 @@ export function SearchModal({
     setResults(searchResults);
   }, [query, files]);
 
-  // Handle keyboard navigation (ESC to close only)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -94,7 +94,7 @@ export function SearchModal({
   const handleDownload = (e: React.MouseEvent, file: GitHubFile) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const fileUrl = `/files/${encodeURIComponent(file.name)}`;
     const link = document.createElement("a");
     link.href = fileUrl;
@@ -113,16 +113,13 @@ export function SearchModal({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-40"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-20 px-4">
         <div className="w-full max-w-2xl">
-          {/* Search Input */}
           <div className="bg-[#1a1a1a] rounded-t-lg border border-b-0 border-zinc-800 shadow-lg">
             <div className="flex items-center px-4 py-3 md:py-2 gap-2">
               <svg
@@ -156,7 +153,6 @@ export function SearchModal({
             </div>
           </div>
 
-          {/* Results */}
           <div
             ref={resultsContainerRef}
             className="bg-[#1a1a1a] rounded-b-lg border border-t-0 border-zinc-800 shadow-lg max-h-[60vh] md:max-h-96 overflow-y-auto"
@@ -176,27 +172,33 @@ export function SearchModal({
             {results.map((result) => (
               <div
                 key={result.name}
-                className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 py-4 text-left border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800 hover:bg-opacity-30 transition-colors"
+                className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 py-4 text-left border-b border-zinc-800 last:border-b-0 hover:bg-zinc-800 hover:bg-opacity-30 transition-colors cursor-pointer"
+                onClick={() => handleOpenFile(result)}
               >
-                {/* Icon */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 w-10 h-10 bg-zinc-700 rounded overflow-hidden relative">
                   {getFileType(result.name) === "image" && (
-                    <svg className="w-5 h-5 text-blue-400" viewBox="0 0 24 24">
-                      <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" />
-                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                      <path d="M21 15l-5-5L5 21" stroke="currentColor" fill="none" />
-                    </svg>
+                    <Image
+                      src={`/files/${encodeURIComponent(result.name)}`}
+                      alt={result.name}
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                      placeholder="blur"
+                      blurDataURL={BLUR_PLACEHOLDER}
+                      loading="lazy"
+                    />
                   )}
                   {getFileType(result.name) === "video" && (
-                    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24">
-                      <path
-                        fill="currentColor"
-                        d="M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H4V5h16v14zm-5-7l-5-3v6z"
-                      />
-                    </svg>
+                    <video
+                      src={`/files/${encodeURIComponent(result.name)}`}
+                      className="w-full h-full object-cover"
+                      muted
+                      preload="none"
+                      poster={BLUR_PLACEHOLDER}
+                    />
                   )}
                   {getFileType(result.name) === "other" && (
-                    <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-gray-400 m-auto" viewBox="0 0 24 24">
                       <path
                         fill="currentColor"
                         d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"
@@ -205,7 +207,6 @@ export function SearchModal({
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm md:text-base font-medium truncate">
                     {result.name}
@@ -220,7 +221,6 @@ export function SearchModal({
                   </p>
                 </div>
 
-                {/* Action buttons - visible on all sizes */}
                 <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                   <button
                     onClick={(e) => handleDownload(e, result)}

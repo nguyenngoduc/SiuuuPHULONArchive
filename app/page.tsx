@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { SearchModal } from "./components/SearchModal";
 
 interface GitHubFile {
@@ -92,18 +93,25 @@ function openVideoViewer(fileName: string, videoUrl: string): void {
   viewer.opener = null;
 }
 
+const BLUR_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect fill='%23333333' width='72' height='72'/%3E%3C/svg%3E";
+
 function FileThumbnail({ file }: { file: GitHubFile }) {
   const fileType = getFileType(file.name);
   const [imgError, setImgError] = useState(false);
 
   if (fileType === "image" && !imgError) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={file.download_url}
         alt={file.name}
-        className="w-full h-full object-cover"
+        fill
+        sizes="72px"
+        className="object-cover"
         onError={() => setImgError(true)}
+        placeholder="blur"
+        blurDataURL={BLUR_PLACEHOLDER}
+        loading="lazy"
       />
     );
   }
@@ -114,12 +122,12 @@ function FileThumbnail({ file }: { file: GitHubFile }) {
         src={file.download_url}
         className="w-full h-full object-cover"
         muted
-        preload="metadata"
+        preload="none"
+        poster={BLUR_PLACEHOLDER}
       />
     );
   }
 
-  // Generic file icon
   return (
     <div className="flex flex-col items-center justify-center gap-1 text-zinc-500">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -149,15 +157,13 @@ function FileRow({ file }: { file: GitHubFile }) {
 
   return (
     <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
-      {/* Thumbnail */}
       <div
-        className="flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center"
+        className="relative flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center"
         style={{ width: 72, height: 72 }}
       >
         <FileThumbnail file={{ ...file, download_url: fileUrl }} />
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm font-medium truncate">{file.name}</p>
         <p className="text-zinc-500 text-xs mt-0.5">
@@ -166,7 +172,6 @@ function FileRow({ file }: { file: GitHubFile }) {
         </p>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2 flex-shrink-0">
         <button
           type="button"
@@ -182,6 +187,24 @@ function FileRow({ file }: { file: GitHubFile }) {
         >
           Download
         </a>
+      </div>
+    </div>
+  );
+}
+
+function FileSkeleton() {
+  return (
+    <div className="flex items-center gap-4 bg-[#1a1a1a] rounded-xl px-4 py-3 border border-zinc-800 animate-pulse">
+      <div className="flex-shrink-0 rounded-lg bg-zinc-700" style={{ width: 72, height: 72 }} />
+
+      <div className="flex-1 min-w-0">
+        <div className="h-4 bg-zinc-700 rounded w-1/2" />
+        <div className="h-3 bg-zinc-700 rounded w-1/4 mt-2" />
+      </div>
+
+      <div className="flex gap-2 flex-shrink-0">
+        <div className="h-10 w-16 bg-zinc-700 rounded-lg" />
+        <div className="h-10 w-20 bg-zinc-700 rounded-lg" />
       </div>
     </div>
   );
@@ -212,10 +235,8 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Handle "/" key to open search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't open search if user is typing in an input
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -233,13 +254,11 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Handle scroll to show/hide floating button
   useEffect(() => {
     const handleScroll = () => {
       if (!headerRef.current) return;
 
       const headerRect = headerRef.current.getBoundingClientRect();
-      // Show floating button when header scrolls out of view
       setShowFloatingButton(headerRect.bottom < 0);
     };
 
@@ -262,7 +281,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white font-sans">
       <div className="max-w-5xl mx-auto px-6 py-10">
-        {/* Header */}
         <div ref={headerRef} className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold tracking-tight">
@@ -272,8 +290,7 @@ export default function Home() {
               PHULON DUYLON Song cho SIUUU
             </p>
           </div>
-          
-          {/* Search Button */}
+
           <button
             onClick={() => setSearchOpen(true)}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-sm text-zinc-300 font-medium transition-colors flex items-center gap-2"
@@ -287,25 +304,11 @@ export default function Home() {
           </button>
         </div>
 
-        {/* States */}
         {loading && (
-          <div className="flex items-center gap-3 text-zinc-500 py-12 justify-center">
-            <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8z"
-              />
-            </svg>
-            <span>Đang tải danh sách file...</span>
+          <div className="flex flex-col gap-3">
+            {[...Array(5)].map((_, i) => (
+              <FileSkeleton key={i} />
+            ))}
           </div>
         )}
 
@@ -322,7 +325,6 @@ export default function Home() {
           </p>
         )}
 
-        {/* File list */}
         {!loading && files.length > 0 && (
           <>
             <p className="text-zinc-600 text-xs mb-4 uppercase tracking-widest font-semibold">
@@ -337,11 +339,10 @@ export default function Home() {
         )}
       </div>
 
-      {/* Floating Search Button (appears when scrolling past header) */}
       {showFloatingButton && (
         <button
           onClick={() => setSearchOpen(true)}
-          className="fixed bottom-6 right-6 z-30 w-14 h-14 md:w-16 md:h-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-full shadow-lg transition-all flex items-center justify-center group"
+          className="fixed bottom-6 right-6 z-30 w-14 h-14 md:w-16 md:h-16 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-full shadow-lg transition-all flex items-center justify-center"
           title="Tìm kiếm file"
         >
           <svg className="w-6 h-6 md:w-7 md:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,7 +352,6 @@ export default function Home() {
         </button>
       )}
 
-      {/* Search Modal */}
       <SearchModal
         files={files}
         isOpen={searchOpen}
@@ -361,3 +361,4 @@ export default function Home() {
     </div>
   );
 }
+
