@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { SearchModal } from "./components/SearchModal";
+import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
 
 interface GitHubFile {
   name: string;
@@ -96,9 +97,17 @@ function openVideoViewer(fileName: string, videoUrl: string): void {
 const BLUR_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Crect fill='%23333333' width='72' height='72'/%3E%3C/svg%3E";
 
+const VIDEO_ICON = (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" className="text-purple-400">
+    <path d="M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H4V5h16v14zm-5.04-6.71l-2.75 3.54c-.3.42-.79.67-1.3.67-.5 0-.99-.25-1.3-.67l-2.75-3.54c-.18-.23-.29-.53-.29-.85 0-1.1.9-2 2-2 .69 0 1.29.36 1.63.89.34-.53.94-.89 1.63-.89 1.1 0 2 .9 2 2 0 .32-.11.62-.29.85z" />
+  </svg>
+);
+
 function FileThumbnail({ file }: { file: GitHubFile }) {
   const fileType = getFileType(file.name);
   const [imgError, setImgError] = useState(false);
+  const fileUrl = `/files/${encodeURIComponent(file.name)}`;
+  const videoThumbnail = useVideoThumbnail(fileType === "video" ? fileUrl : "");
 
   if (fileType === "image" && !imgError) {
     return (
@@ -117,14 +126,21 @@ function FileThumbnail({ file }: { file: GitHubFile }) {
   }
 
   if (fileType === "video") {
+    if (videoThumbnail) {
+      return (
+        <>
+          <img src={videoThumbnail} alt={file.name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            {VIDEO_ICON}
+          </div>
+        </>
+      );
+    }
+
     return (
-      <video
-        src={file.download_url}
-        className="w-full h-full object-cover"
-        muted
-        preload="none"
-        poster={BLUR_PLACEHOLDER}
-      />
+      <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-800">
+        {VIDEO_ICON}
+      </div>
     );
   }
 
@@ -161,7 +177,7 @@ function FileRow({ file }: { file: GitHubFile }) {
         className="relative flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center"
         style={{ width: 72, height: 72 }}
       >
-        <FileThumbnail file={{ ...file, download_url: fileUrl }} />
+        <FileThumbnail file={file} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -361,4 +377,3 @@ export default function Home() {
     </div>
   );
 }
-
