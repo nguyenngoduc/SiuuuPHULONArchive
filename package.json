@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "thumbnails": "node scripts/generate-thumbnails.mjs"
+    "thumbnails": "node scripts/generate-thumbnails.mjs",
+    "admin:hash": "node scripts/hash-admin-password.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.9.0",
     "geist": "^1.9.2",
