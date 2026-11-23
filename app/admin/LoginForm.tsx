@@ -31,10 +31,15 @@ export function LoginForm({ provider, className, children }: {
     }}>
       <input type="hidden" name="provider" value={provider} />
       {children}
-      <button type="submit" disabled={pending}
+      <button type="submit" disabled={pending} aria-describedby={github ? "github-login-note" : undefined}
         className={`rounded-lg px-4 py-2 font-medium disabled:opacity-70 ${github ? "border border-zinc-700 justify-self-start" : "bg-blue-600"}`}>
         {pending ? "Đang đăng nhập…" : github ? "Đăng nhập với GitHub" : "Đăng nhập"}
       </button>
+      {github && (
+        <p id="github-login-note" className="text-sm text-zinc-400">
+          Dùng đúng tài khoản GitHub bạn muốn liên kết. Nếu chưa có quyền, hệ thống sẽ gửi yêu cầu để quản trị viên xét duyệt trong vòng 72 giờ.
+        </p>
+      )}
       {pending && (
         <div role="status" className="flex justify-center text-white">
           <span className={styles.loader} aria-hidden="true" />

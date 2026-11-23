@@ -1,5 +1,6 @@
 import { AuthError } from "next-auth";
 import { adminLogin, signIn } from "@/auth";
+import { isSameOriginPost } from "@/lib/request-origin";
 
 function seeOther(location: string) {
   return new Response(null, {
@@ -10,9 +11,7 @@ function seeOther(location: string) {
 
 export async function POST(request: Request) {
   // The server signIn helper bypasses Auth.js's built-in CSRF check.
-  const host = request.headers.get("host");
-  const protocol = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.slice(0, -1);
-  if (!host || request.headers.get("origin") !== `${protocol}://${host}`) {
+  if (!isSameOriginPost(request)) {
     return new Response("Nguồn yêu cầu không hợp lệ.", { status: 403 });
   }
 
