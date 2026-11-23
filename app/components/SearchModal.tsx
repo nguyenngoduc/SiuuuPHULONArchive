@@ -47,7 +47,7 @@ export function SearchModal({ files, onClose, onSelectFile }: {
           </p>
         )}
         {results.map((file) => (
-          <div key={file.name} className="flex items-center gap-3 border-b border-zinc-800 p-3">
+          <div key={file.url} className="flex items-center gap-3 border-b border-zinc-800 p-3">
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
               <MediaThumbnail file={file} />
             </div>
@@ -59,7 +59,7 @@ export function SearchModal({ files, onClose, onSelectFile }: {
               onClose();
               onSelectFile(file);
             }}>Mở</button>
-            <a href={file.url} download={file.name} className="rounded bg-green-700 px-3 py-2">Tải</a>
+            <a href={file.downloadUrl ?? file.url} download={file.name} className="rounded bg-green-700 px-3 py-2">Tải</a>
           </div>
         ))}
       </div>

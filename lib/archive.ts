@@ -3,6 +3,7 @@ export type ArchiveFile = {
   size: number;
   sha: string;
   url: string;
+  downloadUrl?: string;
   thumbnail?: string;
 };
 

@@ -103,7 +103,7 @@ export function MediaPreview({ file, onClose }: { file: ArchiveFile; onClose: ()
             <option value="native">Trình phát trình duyệt</option>
           </select>
         )}
-        <a href={file.url} download={file.name} className="rounded bg-green-700 px-3 py-2">Tải xuống</a>
+        <a href={file.downloadUrl ?? file.url} download={file.name} className="rounded bg-green-700 px-3 py-2">Tải xuống</a>
         <button type="button" onClick={close} className="rounded bg-zinc-700 px-3 py-2">Đóng</button>
       </header>
 

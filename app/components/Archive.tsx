@@ -35,7 +35,7 @@ function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
           View
         </button>
         <a
-          href={file.url}
+          href={file.downloadUrl ?? file.url}
           download={file.name}
           className="px-4 py-2 bg-green-600 hover:bg-green-500 active:scale-95 text-white rounded-lg text-sm font-medium transition-all"
         >
@@ -46,9 +46,17 @@ function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
   );
 }
 
-export default function Archive({ initialFiles }: { initialFiles: ArchiveFile[] }) {
+export default function Archive({
+  initialFiles,
+  uploadVersion = 0,
+}: {
+  initialFiles: ArchiveFile[];
+  uploadVersion?: number;
+}) {
   const [files, setFiles] = useState(initialFiles);
+  const [uploads, setUploads] = useState<ArchiveFile[]>([]);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [blobFailed, setBlobFailed] = useState(false);
   const [selectedFile, setSelectedFile] = useState<ArchiveFile | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
@@ -77,6 +85,28 @@ export default function Archive({ initialFiles }: { initialFiles: ArchiveFile[] 
     void refresh();
     return () => controller.abort();
   }, [initialFiles]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function refreshUploads() {
+      try {
+        const response = await fetch("/api/archive/uploads", { signal: controller.signal });
+        if (!response.ok) throw new Error("Blob sync failed");
+        const uploaded: ArchiveFile[] = await response.json();
+        if (controller.signal.aborted) return;
+        setUploads(uploaded);
+        setBlobFailed(false);
+      } catch {
+        if (!controller.signal.aborted) setBlobFailed(true);
+      }
+    }
+
+    void refreshUploads();
+    return () => controller.abort();
+  }, [uploadVersion]);
+
+  const catalog = [...files, ...uploads].sort((a, b) => a.name.localeCompare(b.name));
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -139,21 +169,24 @@ export default function Archive({ initialFiles }: { initialFiles: ArchiveFile[] 
             Chưa thể đồng bộ GitHub. Đang hiển thị các tệp có sẵn.
           </p>
         )}
+        {blobFailed && (
+          <p role="status" className="mb-4 text-sm text-zinc-400">Chưa thể tải danh sách từ Blob.</p>
+        )}
 
-        {files.length === 0 && (
+        {catalog.length === 0 && (
           <p className="text-zinc-500 text-center py-12">
             Không có file nào trong kho lưu trữ.
           </p>
         )}
 
-        {files.length > 0 && (
+        {catalog.length > 0 && (
           <>
             <p className="text-zinc-600 text-xs mb-4 uppercase tracking-widest font-semibold">
-              {files.length} file
+              {catalog.length} file
             </p>
             <div className="flex flex-col gap-3">
-              {files.map((file) => (
-                <FileRow key={file.name} file={file} onView={() => setSelectedFile(file)} />
+              {catalog.map((file) => (
+                <FileRow key={file.url} file={file} onView={() => setSelectedFile(file)} />
               ))}
             </div>
           </>
@@ -175,7 +208,7 @@ export default function Archive({ initialFiles }: { initialFiles: ArchiveFile[] 
 
       {searchOpen && (
         <SearchModal
-          files={files}
+          files={catalog}
           onClose={() => setSearchOpen(false)}
           onSelectFile={setSelectedFile}
         />
