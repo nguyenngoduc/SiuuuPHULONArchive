@@ -1,16 +1,10 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { auth } from "@/auth";
+import { verifyAdminRequest } from "@/auth";
 import { maximumUploadSize, parseUploadPath } from "@/lib/archive-upload";
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  if (origin && origin !== `https://${host}` && origin !== `http://${host}`) {
-    return Response.json({ error: "Nguồn yêu cầu không hợp lệ." }, { status: 403 });
-  }
-  if (!(await auth())?.user) {
-    return Response.json({ error: "Bạn cần đăng nhập bằng tài khoản quản trị." }, { status: 401 });
-  }
+  const denied = await verifyAdminRequest(request);
+  if (denied) return denied;
 
   try {
     const body: HandleUploadBody = await request.json();

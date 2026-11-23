@@ -22,6 +22,10 @@ Trang chủ hiển thị ngay danh sách từ bản triển khai. Khi GitHub ph�
 
 ## Tải lên từ trình duyệt
 
-Mở `/admin` và đăng nhập bằng tài khoản GitHub `nguyenngoduc`. Trang quản lý tải ảnh và video có kích thước tối đa 512 MB mỗi tệp trực tiếp lên Vercel Blob. Tệp tải lên xuất hiện trong kho công khai sau khi tải thành công. Tải lại trang kho nếu đang mở từ trước.
+Mở `/admin` và đăng nhập bằng tài khoản GitHub `nguyenngoduc`. Bạn có thể chọn nhiều ảnh và video trong một lần. Trang quản lý tải từng tệp trực tiếp lên Vercel Blob, tối đa 512 MB mỗi tệp. Tệp tải thành công xuất hiện trong kho công khai. Tải lại trang kho nếu đang mở từ trước.
 
 Project Vercel cần một Blob Store loại Public và các biến Production `BLOB_READ_WRITE_TOKEN`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_SECRET`. Đặt URL callback của GitHub OAuth App thành `https://phulon-archive.vercel.app/api/auth/callback/github` khi dùng tên miền chính của dự án. Giữ giá trị các biến bí mật trong Vercel.
+
+Admin có thể đổi tên và xóa tệp Blob. Để bật hai thao tác này cho tệp cũ trong `public/files`, tạo một GitHub fine-grained personal access token chỉ cấp cho repo `nguyenngoduc/SiuuuPHULONArchive` với quyền **Contents: Read and write**. Lưu token dưới dạng biến Secret `ARCHIVE_GITHUB_TOKEN` trong môi trường Production của Vercel rồi triển khai lại. Thao tác với tệp GitHub tạo commit trên `main`, vì vậy tài khoản cấp token cần được phép ghi vào nhánh này.
+
+Danh sách dùng ngày tải lên do Blob ghi nhận hoặc ngày commit sửa tệp trong GitHub. Các mục chưa lấy được ngày vẫn có thể xem và tải, đồng thời xuất hiện cuối khi sắp xếp theo ngày.

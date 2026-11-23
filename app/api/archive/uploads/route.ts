@@ -25,6 +25,8 @@ export async function GET() {
             name: entry.name,
             sha: entry.id,
             size: blob.size,
+            date: blob.uploadedAt.toISOString(),
+            blobPath: blob.pathname,
             url: blob.url,
             downloadUrl: getDownloadUrl(blob.url),
           });

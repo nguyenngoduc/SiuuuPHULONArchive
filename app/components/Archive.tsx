@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatSize, getFileType, type ArchiveFile } from "@/lib/archive";
+import { formatArchiveDate, formatSize, getFileType, sortArchive, type ArchiveFile, type ArchiveSort } from "@/lib/archive";
 import { SearchModal } from "./SearchModal";
 import { MediaPreview } from "./MediaPreview";
 import { MediaThumbnail } from "./MediaThumbnail";
+import { ManageFileDialog } from "./ManageFileDialog";
 
-function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
+type ManagementAction = "rename" | "delete";
+
+function FileRow({ file, onView, onManage }: {
+  file: ArchiveFile;
+  onView: () => void;
+  onManage?: (action: ManagementAction) => void;
+}) {
   const fileType = getFileType(file.name);
 
   return (
-    <div className="flex items-center gap-4 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
+    <div className="flex flex-wrap items-center gap-3 bg-[#1a1a1a] hover:bg-[#222] transition-colors rounded-xl px-4 py-3 border border-zinc-800">
       <div
         className="relative flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center"
         style={{ width: 72, height: 72 }}
@@ -23,10 +30,11 @@ function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
         <p className="text-zinc-500 text-xs mt-0.5">
           {fileType === "image" ? "🖼 Image" : fileType === "video" ? "🎬 Video" : "📄 File"}
           {file.size > 0 && ` · ${formatSize(file.size)}`}
+          {" · "}<time dateTime={file.date}>{formatArchiveDate(file.date)}</time>
         </p>
       </div>
 
-      <div className="flex gap-2 flex-shrink-0">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto">
         <button
           type="button"
           onClick={onView}
@@ -41,6 +49,12 @@ function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
         >
           Download
         </a>
+        {onManage && (
+          <>
+            <button type="button" onClick={() => onManage("rename")} className="rounded-lg bg-zinc-700 px-3 py-2 text-sm">Đổi tên</button>
+            <button type="button" onClick={() => onManage("delete")} className="rounded-lg bg-red-950 px-3 py-2 text-sm text-red-200">Xóa</button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -49,9 +63,11 @@ function FileRow({ file, onView }: { file: ArchiveFile; onView: () => void }) {
 export default function Archive({
   initialFiles,
   uploadVersion = 0,
+  management,
 }: {
   initialFiles: ArchiveFile[];
   uploadVersion?: number;
+  management?: { github: boolean };
 }) {
   const [files, setFiles] = useState(initialFiles);
   const [uploads, setUploads] = useState<ArchiveFile[]>([]);
@@ -60,6 +76,10 @@ export default function Archive({
   const [selectedFile, setSelectedFile] = useState<ArchiveFile | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const [sort, setSort] = useState<ArchiveSort>("name-asc");
+  const [edit, setEdit] = useState<{ file: ArchiveFile; action: ManagementAction } | null>(null);
+  const [editedAt, setEditedAt] = useState(0);
+  const [editMessage, setEditMessage] = useState("");
   const headerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,15 +88,17 @@ export default function Archive({
 
     async function refresh() {
       try {
-        const response = await fetch("/api/archive", { signal: controller.signal });
+        const url = editedAt ? `/api/archive?refresh=${editedAt}` : "/api/archive";
+        const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) throw new Error("Archive sync failed");
         const remote: ArchiveFile[] = await response.json();
         if (controller.signal.aborted) return;
         setFiles(remote.map((file) => {
           const local = bundled.get(file.name);
           if (local?.sha !== file.sha) return file;
-          return { ...local, thumbnail: local.thumbnail ?? file.thumbnail };
+          return { ...local, date: local.date ?? file.date, thumbnail: local.thumbnail ?? file.thumbnail };
         }));
+        setSyncFailed(false);
       } catch {
         if (!controller.signal.aborted) setSyncFailed(true);
       }
@@ -84,7 +106,7 @@ export default function Archive({
 
     void refresh();
     return () => controller.abort();
-  }, [initialFiles]);
+  }, [initialFiles, editedAt]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -104,14 +126,27 @@ export default function Archive({
 
     void refreshUploads();
     return () => controller.abort();
-  }, [uploadVersion]);
+  }, [uploadVersion, editedAt]);
 
-  const catalog = [...files, ...uploads].sort((a, b) => a.name.localeCompare(b.name));
+  const catalog = sortArchive([...files, ...uploads], sort);
+
+  function completeEdit() {
+    if (!edit) return;
+    if (edit.action === "delete") {
+      const keep = (file: ArchiveFile) => file.url !== edit.file.url;
+      if (edit.file.blobPath) setUploads((previous) => previous.filter(keep));
+      else setFiles((previous) => previous.filter(keep));
+    }
+    setEditMessage(edit.action === "delete" ? "Đã xóa tệp." : "Đã đổi tên tệp.");
+    setEdit(null);
+    setEditedAt(Date.now());
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
-        selectedFile ||
+        selectedFile || edit ||
+        e.target instanceof HTMLSelectElement ||
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
       ) {
@@ -126,7 +161,7 @@ export default function Archive({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedFile]);
+  }, [selectedFile, edit]);
 
   useEffect(() => {
     const header = headerRef.current;
@@ -172,6 +207,10 @@ export default function Archive({
         {blobFailed && (
           <p role="status" className="mb-4 text-sm text-zinc-400">Chưa thể tải danh sách từ Blob.</p>
         )}
+        {management && !management.github && files.length > 0 && (
+          <p className="mb-4 text-sm text-zinc-400">Đổi tên và xóa tệp GitHub cần quyền ghi vào repo. Tệp tải lên Blob có thể chỉnh sửa ngay.</p>
+        )}
+        {editMessage && <p role="status" className="mb-4 text-sm text-zinc-300">{editMessage}</p>}
 
         {catalog.length === 0 && (
           <p className="text-zinc-500 text-center py-12">
@@ -181,12 +220,27 @@ export default function Archive({
 
         {catalog.length > 0 && (
           <>
-            <p className="text-zinc-600 text-xs mb-4 uppercase tracking-widest font-semibold">
-              {catalog.length} file
-            </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-zinc-400 text-xs uppercase tracking-widest font-semibold">{catalog.length} tệp</p>
+              <label className="flex items-center gap-2 text-sm text-zinc-300">
+                Sắp xếp
+                <select className="rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-white" value={sort}
+                  onChange={(event) => setSort(event.target.value as ArchiveSort)}>
+                  <option value="name-asc">Tên A–Z</option>
+                  <option value="name-desc">Tên Z–A</option>
+                  <option value="date-desc">Ngày mới nhất</option>
+                  <option value="date-asc">Ngày cũ nhất</option>
+                  <option value="size-desc">Kích thước lớn nhất</option>
+                  <option value="size-asc">Kích thước nhỏ nhất</option>
+                </select>
+              </label>
+            </div>
             <div className="flex flex-col gap-3">
               {catalog.map((file) => (
-                <FileRow key={file.url} file={file} onView={() => setSelectedFile(file)} />
+                <FileRow key={file.url} file={file} onView={() => setSelectedFile(file)}
+                  onManage={management && (file.blobPath || management.github)
+                    ? (action) => setEdit({ file, action }) : undefined}
+                />
               ))}
             </div>
           </>
@@ -216,6 +270,7 @@ export default function Archive({
       {selectedFile && (
         <MediaPreview file={selectedFile} onClose={() => setSelectedFile(null)} />
       )}
+      {edit && <ManageFileDialog {...edit} onClose={() => setEdit(null)} onSaved={completeEdit} />}
     </div>
   );
 }

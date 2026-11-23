@@ -48,40 +48,30 @@ async function createThumbnail(file: File, isVideo: boolean): Promise<Blob | nul
   }
 }
 
-export function AdminUpload() {
+export function AdminUpload({ canManageGitHub }: { canManageGitHub: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const active = useRef<AbortController | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
+  const [progress, setProgress] = useState<{ name: string; index: number; total: number; percentage: number } | null>(null);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
   const [uploadVersion, setUploadVersion] = useState(0);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (active.current) return;
-    const file = input.current?.files?.[0];
-    const contentType = file && uploadContentType(file.name);
+    const files = Array.from(input.current?.files ?? []);
     setMessage("");
-    setError("");
-    if (!file || !contentType) {
-      setError("Chọn ảnh hoặc video có định dạng được hỗ trợ.");
-      return;
-    }
-    if (!file.size || file.size > maximumUploadSize) {
-      setError(`Tệp phải có kích thước từ 1 byte đến ${formatSize(maximumUploadSize)}.`);
-      return;
-    }
-
-    const folder = `archive/${crypto.randomUUID()}`;
-    const pathname = `${folder}/original/${file.name}`;
-    if (!parseUploadPath(pathname)) {
-      setError("Tên tệp không hợp lệ hoặc dài hơn 180 ký tự.");
+    setErrors([]);
+    if (!files.length) {
+      setErrors(["Chọn ít nhất một ảnh hoặc video."]);
       return;
     }
 
     const controller = new AbortController();
     active.current = controller;
-    setProgress(0);
+    const failures: string[] = [];
+    let completed = 0;
+    let withoutThumbnail = 0;
     const options = {
       access: "public" as const,
       handleUploadUrl: "/api/admin/upload",
@@ -89,25 +79,49 @@ export function AdminUpload() {
     };
 
     try {
-      const thumbnail = await createThumbnail(file, contentType.startsWith("video/")).catch(() => null);
-      controller.signal.throwIfAborted();
-      if (thumbnail) {
-        await upload(`${folder}/thumbnail.webp`, thumbnail, { ...options, contentType: "image/webp" });
+      for (const [index, file] of files.entries()) {
+        if (controller.signal.aborted) break;
+        const contentType = uploadContentType(file.name);
+        const folder = `archive/${crypto.randomUUID()}`;
+        const pathname = `${folder}/original/${file.name}`;
+        if (!contentType || !parseUploadPath(pathname)) {
+          failures.push(`${file.name} · Tên hoặc định dạng tệp không hợp lệ.`);
+          continue;
+        }
+        if (!file.size || file.size > maximumUploadSize) {
+          failures.push(`${file.name} · Dung lượng phải từ 1 byte đến ${formatSize(maximumUploadSize)}.`);
+          continue;
+        }
+
+        const step = { name: file.name, index: index + 1, total: files.length };
+        setProgress({ ...step, percentage: 0 });
+        try {
+          const thumbnail = await createThumbnail(file, contentType.startsWith("video/")).catch(() => null);
+          controller.signal.throwIfAborted();
+          if (thumbnail) {
+            await upload(`${folder}/thumbnail.webp`, thumbnail, { ...options, contentType: "image/webp" });
+          }
+          await upload(pathname, file, {
+            ...options,
+            contentType,
+            multipart: file.size > 8 * 1024 * 1024,
+            onUploadProgress: ({ percentage }) => setProgress({ ...step, percentage }),
+          });
+          completed++;
+          if (!thumbnail) withoutThumbnail++;
+        } catch {
+          if (controller.signal.aborted) break;
+          failures.push(`${file.name} · Tải lên thất bại.`);
+        }
       }
-      await upload(pathname, file, {
-        ...options,
-        contentType,
-        multipart: file.size > 8 * 1024 * 1024,
-        onUploadProgress: ({ percentage }) => setProgress(percentage),
-      });
-      setMessage(thumbnail
-        ? `Đã tải lên ${file.name}.`
-        : `Đã tải lên ${file.name}. Danh sách sẽ dùng biểu tượng vì thiết bị không tạo được thumbnail.`);
-      setUploadVersion((version) => version + 1);
+      const cancelled = controller.signal.aborted ? " Đã dừng đợt tải lên." : "";
+      const missing = withoutThumbnail ? ` ${withoutThumbnail} tệp sẽ dùng biểu tượng thay cho thumbnail.` : "";
+      setMessage(`Đã tải lên ${completed}/${files.length} tệp.${cancelled}${missing}`);
+      setErrors(failures);
+      if (completed || controller.signal.aborted || failures.length) {
+        setUploadVersion((version) => version + 1);
+      }
       if (input.current) input.current.value = "";
-    } catch {
-      if (controller.signal.aborted) setMessage("Đã hủy tải lên.");
-      else setError("Tải lên thất bại. Kiểm tra kết nối hoặc đăng nhập lại rồi thử lại.");
     } finally {
       active.current = null;
       setProgress(null);
@@ -122,6 +136,7 @@ export function AdminUpload() {
           <input
             ref={input}
             type="file"
+            multiple
             aria-label="Chọn ảnh hoặc video"
             accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.mp4,.m4v,.webm,.mov"
             disabled={progress !== null}
@@ -138,11 +153,20 @@ export function AdminUpload() {
           )}
         </form>
         <p className="mt-3 text-sm text-zinc-400">Tối đa {formatSize(maximumUploadSize)} mỗi tệp. Tệp tải lên sẽ hiển thị công khai.</p>
-        {progress !== null && <progress aria-label="Tiến độ tải lên" className="mt-3 w-full" value={progress} max={100} />}
+        {progress !== null && (
+          <div className="mt-3">
+            <p className="break-all text-sm text-zinc-300">Tệp {progress.index}/{progress.total} · {progress.name}</p>
+            <progress aria-label="Tiến độ tải lên" className="w-full" value={progress.percentage} max={100} />
+          </div>
+        )}
         {message && <p role="status" className="mt-3 text-sm text-zinc-200">{message}</p>}
-        {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+        {errors.length > 0 && (
+          <ul role="alert" className="mt-3 list-disc space-y-1 pl-5 text-sm text-red-300">
+            {errors.map((error, index) => <li key={index} className="break-all">{error}</li>)}
+          </ul>
+        )}
       </section>
-      <Archive initialFiles={emptyCatalog} uploadVersion={uploadVersion} />
+      <Archive initialFiles={emptyCatalog} uploadVersion={uploadVersion} management={{ github: canManageGitHub }} />
     </>
   );
 }

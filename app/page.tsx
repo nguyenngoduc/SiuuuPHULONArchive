@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { ArchiveFile } from "@/lib/archive";
+import { bundledArchiveDate } from "@/lib/github-archive";
 import Archive from "./components/Archive";
 
 export const dynamic = "force-static";
@@ -26,6 +27,7 @@ export default async function Page() {
       name: entry.name,
       size,
       sha,
+      date: bundledArchiveDate(entry.name, sha),
       url: `/files/${encodeURIComponent(entry.name)}`,
       thumbnail: thumbnails.has(thumbnail) ? `/thumbnails/${thumbnail}` : undefined,
     });

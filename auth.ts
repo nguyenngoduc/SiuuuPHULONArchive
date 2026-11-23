@@ -14,3 +14,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+export async function verifyAdminRequest(request: Request) {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  if (origin && origin !== `https://${host}` && origin !== `http://${host}`) {
+    return Response.json({ error: "Nguồn yêu cầu không hợp lệ." }, { status: 403 });
+  }
+  if (!(await auth())?.user) {
+    return Response.json({ error: "Bạn cần đăng nhập bằng tài khoản quản trị." }, { status: 401 });
+  }
+}

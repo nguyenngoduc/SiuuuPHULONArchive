@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatSize, type ArchiveFile } from "@/lib/archive";
+import { formatArchiveDate, formatSize, type ArchiveFile } from "@/lib/archive";
 import { MediaThumbnail } from "./MediaThumbnail";
 
 export function SearchModal({ files, onClose, onSelectFile }: {
@@ -53,7 +53,9 @@ export function SearchModal({ files, onClose, onSelectFile }: {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate">{file.name}</p>
-              <p className="text-xs text-zinc-400">{formatSize(file.size)}</p>
+              <p className="text-xs text-zinc-400">
+                {formatSize(file.size)} · <time dateTime={file.date}>{formatArchiveDate(file.date)}</time>
+              </p>
             </div>
             <button type="button" className="rounded bg-blue-700 px-3 py-2" onClick={() => {
               onClose();

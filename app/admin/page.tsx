@@ -43,7 +43,7 @@ export default async function AdminPage({ searchParams }: {
           </>
         )}
       </section>
-      {session?.user && <AdminUpload />}
+      {session?.user && <AdminUpload canManageGitHub={Boolean(process.env.ARCHIVE_GITHUB_TOKEN)} />}
     </main>
   );
 }

@@ -1,31 +1,13 @@
-import { archiveRepository, gitShaPattern, type ArchiveFile } from "@/lib/archive";
-
-const api = `https://api.github.com/repos/${archiveRepository}`;
-
-async function github(path: string, immutable = false) {
-  const response = await fetch(`${api}/${path}`, {
-    cache: immutable ? "force-cache" : "no-store",
-    signal: AbortSignal.timeout(5000),
-    headers: { Accept: "application/vnd.github+json" },
-  });
-  if (!response.ok) throw new Error(`GitHub API returned ${response.status}`);
-  return response.json();
-}
+import { archiveRepository, type ArchiveFile } from "@/lib/archive";
+import { bundledArchiveDate, getArchiveRevision, githubArchive } from "@/lib/github-archive";
 
 export async function GET() {
   try {
-    const { object } = await github("git/ref/heads/main");
-    const revision: string = object?.sha;
-    if (!gitShaPattern.test(revision)) throw new Error("Invalid GitHub revision");
-
-    const commit = await github(`git/commits/${revision}`, true);
-    const treeSha: string = commit.tree?.sha;
-    if (!gitShaPattern.test(treeSha)) throw new Error("Invalid GitHub tree");
-
-    const snapshot: {
+    const { revision, treeSha } = await getArchiveRevision();
+    const snapshot = await githubArchive<{
       truncated: boolean;
       tree: { path: string; type: string; sha: string; size: number }[];
-    } = await github(`git/trees/${treeSha}?recursive=1`, true);
+    }>(`git/trees/${treeSha}?recursive=1`, { immutable: true });
     if (snapshot.truncated) throw new Error("GitHub tree was truncated");
 
     const paths = new Set(snapshot.tree.filter((entry) => entry.type === "blob").map((entry) => entry.path));
@@ -38,12 +20,24 @@ export async function GET() {
         name,
         size: entry.size,
         sha: entry.sha,
+        date: bundledArchiveDate(name, entry.sha),
         url: `/api/files/${encodeURIComponent(name)}?rev=${revision}`,
         thumbnail: paths.has(thumbnail)
           ? `https://raw.githubusercontent.com/${archiveRepository}/${revision}/${thumbnail}`
           : undefined,
       }];
     });
+
+    // Bound requests on the public API if a large import bypasses the bundled index.
+    const missingDates = files.filter((file) => !file.date).slice(0, 12);
+    await Promise.allSettled(missingDates.map(async (file) => {
+      const query = new URLSearchParams({ path: `public/files/${file.name}`, sha: revision, per_page: "1" });
+      const history = await githubArchive<{ commit: { committer: { date: string } } }[]>(
+        `commits?${query}`, { immutable: true },
+      );
+      const date = history[0]?.commit.committer.date;
+      if (date && Number.isFinite(Date.parse(date))) file.date = date;
+    }));
 
     files.sort((a, b) => a.name.localeCompare(b.name));
     return Response.json(files, { headers: { "Cache-Control": "public, max-age=0, s-maxage=60" } });
