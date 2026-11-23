@@ -1,26 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
-import { adminLogin, auth, signIn, signOut } from "@/auth";
+import { adminLogin, auth, signOut } from "@/auth";
 import { AdminUpload } from "./AdminUpload";
-import { LoginSubmit } from "./LoginSubmit";
+import { LoginForm } from "./LoginForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Quản lý kho lưu trữ", robots: { index: false, follow: false } };
-
-async function signInWithPassword(form: FormData) {
-  "use server";
-  try {
-    await signIn("credentials", {
-      username: form.get("username"),
-      password: form.get("password"),
-      redirectTo: "/admin",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) redirect("/admin?error=CredentialsSignin");
-    throw error;
-  }
-}
 
 export default async function AdminPage({ searchParams }: {
   searchParams: Promise<{ error?: string }>;
@@ -58,7 +42,7 @@ export default async function AdminPage({ searchParams }: {
               </p>
             )}
             {adminLogin.password && (
-              <form action={signInWithPassword} className="mt-5 grid max-w-sm gap-4">
+              <LoginForm provider="credentials" className="mt-5 grid max-w-sm gap-4">
                 <label className="grid gap-1.5 text-sm">
                   Tên đăng nhập
                   <input name="username" autoComplete="username" autoCapitalize="none" spellCheck={false}
@@ -69,19 +53,10 @@ export default async function AdminPage({ searchParams }: {
                   <input name="password" type="password" autoComplete="current-password" required maxLength={256}
                     className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-base" />
                 </label>
-                <LoginSubmit label="Đăng nhập" className="rounded-lg bg-blue-600 px-4 py-2 font-medium" />
-              </form>
+              </LoginForm>
             )}
             {adminLogin.github && (
-              <form className="mt-5" action={async () => {
-                "use server";
-                await signIn("github", { redirectTo: "/admin" });
-              }}>
-                <LoginSubmit
-                  label="Đăng nhập với GitHub"
-                  className="rounded-lg border border-zinc-700 px-4 py-2 font-medium"
-                />
-              </form>
+              <LoginForm provider="github" className="mt-5 grid max-w-sm gap-4" />
             )}
           </>
         )}
