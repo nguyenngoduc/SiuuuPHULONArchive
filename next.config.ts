@@ -9,8 +9,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/files/:path*",
-        destination:
-          "https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/:path*",
+        destination: "/api/files/:path*",
       },
     ];
   },
