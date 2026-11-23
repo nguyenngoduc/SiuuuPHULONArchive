@@ -6,12 +6,14 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   async rewrites() {
-    return [
-      {
-        source: "/files/:path*",
-        destination: "/api/files/:path*",
-      },
-    ];
+    return {
+      fallback: [
+        {
+          source: "/files/:path*",
+          destination: "/api/files/:path*",
+        },
+      ],
+    };
   },
 };
 

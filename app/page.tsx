@@ -42,7 +42,7 @@ function openVideoViewer(fileName: string, videoUrl: string): void {
   if (!viewer) return;
 
   const safeTitle = escapeHtml(fileName);
-  const safeSrc = escapeHtml(videoUrl);
+  const safeSrc = escapeHtml(new URL(videoUrl, window.location.href).href);
 
   viewer.document.write(`<!doctype html>
 <html lang="en">
@@ -74,7 +74,7 @@ function openVideoViewer(fileName: string, videoUrl: string): void {
     </header>
     <main>
       <video id="archive-video" class="video-js vjs-big-play-centered" controls preload="auto" playsinline>
-        <source src="${safeSrc}" type="video/mp4" />
+        <source src="${safeSrc}" />
       </video>
     </main>
     <script src="https://unpkg.com/video.js/dist/video.min.js"><\/script>
@@ -112,7 +112,7 @@ function FileThumbnail({ file }: { file: GitHubFile }) {
   if (fileType === "image" && !imgError) {
     return (
       <Image
-        src={file.download_url}
+        src={fileUrl}
         alt={file.name}
         fill
         sizes="72px"
