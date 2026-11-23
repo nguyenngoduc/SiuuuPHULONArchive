@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extname } from "node:path";
+import { archiveRepository, gitShaPattern } from "@/lib/archive";
 
 const mediaTypes: Readonly<Record<string, string>> = {
   ".avif": "image/avif",
@@ -28,8 +29,12 @@ async function proxyFile(request: Request, { params }: RouteContext) {
     return new NextResponse("File not found", { status: 404 });
   }
 
+  const revision = new URL(request.url).searchParams.get("rev");
+  if (revision !== null && !gitShaPattern.test(revision)) {
+    return new Response(null, { status: 400 });
+  }
   const filePath = path.map(encodeURIComponent).join("/");
-  const upstreamUrl = `https://raw.githubusercontent.com/nguyenngoduc/SiuuuPHULONArchive/main/public/files/${filePath}`;
+  const upstreamUrl = `https://raw.githubusercontent.com/${archiveRepository}/${revision ?? "main"}/public/files/${filePath}`;
   const requestHeaders = new Headers({ "accept-encoding": "identity" });
   for (const header of ["range", "if-range"]) {
     const value = request.headers.get(header);
@@ -39,11 +44,13 @@ async function proxyFile(request: Request, { params }: RouteContext) {
   try {
     const upstream = await fetch(upstreamUrl, {
       method: request.method,
+      signal: request.signal,
       headers: requestHeaders,
       cache: "no-store",
     });
     const responseHeaders = new Headers({
       "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
       "accept-ranges": upstream.headers.get("accept-ranges") ?? "bytes",
     });
 
