@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { adminLogin, auth, signIn, signOut } from "@/auth";
 import { AdminUpload } from "./AdminUpload";
+import { LoginSubmit } from "./LoginSubmit";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Quản lý kho lưu trữ", robots: { index: false, follow: false } };
@@ -68,7 +69,7 @@ export default async function AdminPage({ searchParams }: {
                   <input name="password" type="password" autoComplete="current-password" required maxLength={256}
                     className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-base" />
                 </label>
-                <button className="rounded-lg bg-blue-600 px-4 py-2 font-medium">Đăng nhập</button>
+                <LoginSubmit label="Đăng nhập" className="rounded-lg bg-blue-600 px-4 py-2 font-medium" />
               </form>
             )}
             {adminLogin.github && (
@@ -76,7 +77,10 @@ export default async function AdminPage({ searchParams }: {
                 "use server";
                 await signIn("github", { redirectTo: "/admin" });
               }}>
-                <button className="rounded-lg border border-zinc-700 px-4 py-2 font-medium">Đăng nhập với GitHub</button>
+                <LoginSubmit
+                  label="Đăng nhập với GitHub"
+                  className="rounded-lg border border-zinc-700 px-4 py-2 font-medium"
+                />
               </form>
             )}
           </>

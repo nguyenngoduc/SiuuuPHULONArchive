@@ -1,0 +1,54 @@
+.loader {
+  width: 40px;
+  height: 40px;
+  --bar: no-repeat linear-gradient(currentColor 0 0);
+  background:
+    var(--bar) 0 0,
+    var(--bar) 0 100%,
+    var(--bar) 50% 0,
+    var(--bar) 50% 100%,
+    var(--bar) 100% 0,
+    var(--bar) 100% 100%;
+  background-size: 8px 50%;
+  animation: loader-bars 2s infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.loader::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  top: calc(50% - 4px);
+  left: -8px;
+  animation: loader-ball 2s infinite;
+}
+
+@keyframes loader-bars {
+  16.67% { background-size: 8px 30%, 8px 30%, 8px 50%, 8px 50%, 8px 50%, 8px 50%; }
+  33.33%, 50% { background-size: 8px 30%, 8px 30%, 8px 30%, 8px 30%, 8px 50%, 8px 50%; }
+  66.67% { background-size: 8px 50%, 8px 50%, 8px 30%, 8px 30%, 8px 50%, 8px 50%; }
+  83.33% { background-size: 8px 50%; }
+}
+
+@keyframes loader-ball {
+  20% { left: 0; }
+  40%, 70% { left: calc(50% - 4px); }
+  80%, 85% { left: 8px; top: calc(50% - 4px); }
+  100% { left: 8px; top: -8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader {
+    animation: none;
+    background-size: 8px 30%;
+  }
+
+  .loader::before {
+    animation: none;
+    left: calc(50% - 4px);
+  }
+}
